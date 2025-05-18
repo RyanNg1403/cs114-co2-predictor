@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CO2 Emission Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.15/dist/themes/default/style.min.css" />
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e0e7ff 0%, #f0fdfa 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .card {
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(80, 112, 255, 0.08), 0 1.5px 4px rgba(0,0,0,0.04);
+            margin-bottom: 2rem;
+            border: none;
+            background: #fff;
+            transition: box-shadow 0.2s;
+        }
+        .card:hover {
+            box-shadow: 0 12px 32px rgba(80, 112, 255, 0.16), 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .card-header {
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            color: #fff;
+            border-bottom: none;
+            padding: 1.5rem;
+            border-radius: 18px 18px 0 0 !important;
+        }
+        .card-header h5, .card-header .card-title {
+            color: #fff !important; /* dark slate */
+            text-shadow: 0 1px 4px #ffffff44;
+            font-weight: 800;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 1px solid #c7d2fe;
+            padding: 0.75rem;
+            background: #f8fafc;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.2rem #a5b4fc44;
+            border-color: #6366f1;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            border: none;
+            padding: 0.75rem 2.5rem;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #4338ca 0%, #0ea5e9 100%);
+            box-shadow: 0 4px 16px rgba(99,102,241,0.16);
+        }
+        .nav-tabs {
+            border-bottom: 2px solid #c7d2fe;
+            margin-bottom: 2rem;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #6366f1;
+            font-weight: 700;
+            padding: 1rem 2rem;
+            background: #f1f5f9;
+            border-radius: 10px 10px 0 0;
+            margin-right: 4px;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-tabs .nav-link.active {
+            color: #fff;
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            border-bottom: 3px solid #6366f1;
+        }
+        .results {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 2px 8px rgba(80, 112, 255, 0.08);
+            border: 1px solid #c7d2fe;
+        }
+        .feature-group {
+            margin-bottom: 1.5rem;
+        }
+        .feature-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #6366f1;
+        }
+        .prediction-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #0ea5e9;
+            letter-spacing: 0.5px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: #6366f1;
+        }
+        h1 {
+            font-size: 2.7rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-title, h4, h5 {
+            color: #6366f1;
+            font-weight: 700;
+        }
+        .alert-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+        }
+        /* Add a subtle fade-in for results */
+        .results, .card, .alert-danger {
+            animation: fadeIn 0.7s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            .container { padding: 0.5rem; }
+            .card-header, .card-body { padding: 1rem; }
+        }
+        /* Fullscreen mode for tree widget */
+        #treeWidget.fullscreen {
+            position: fixed !important;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: #f8fafc;
+            z-index: 9999;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        #treeWidget.fullscreen #superTreeFrame,
+        #treeWidget.fullscreen #treeSVG {
+            width: 100vw !important;
+            height: 100vh !important;
+            min-height: 100vh !important;
+        }
+        #treeWidget.fullscreen .exit-fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            z-index: 10000;
+            font-size: 1.1rem;
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+            cursor: pointer;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        #treeWidget.fullscreen .exit-fullscreen-btn:hover {
+            background: linear-gradient(90deg, #4338ca 0%, #0ea5e9 100%);
+            box-shadow: 0 4px 16px rgba(99,102,241,0.16);
+        }
+        #fullscreenTreeBtn {
+            background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        #fullscreenTreeBtn:hover {
+            background: linear-gradient(90deg, #4338ca 0%, #0ea5e9 100%);
+            box-shadow: 0 4px 16px rgba(99,102,241,0.16);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">CO2 Emission Predictor</h1>
+        
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="prediction-tab" data-bs-toggle="tab" data-bs-target="#prediction" type="button" role="tab">Prediction</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="analysis-tab" data-bs-toggle="tab" data-bs-target="#analysis" type="button" role="tab">Analysis</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="prediction" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Model Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Select Algorithm</label>
+                                <select class="form-select" id="algorithm">
+                                    <option value="Lasso">Lasso</option>
+                                    <option value="Decision Tree">Decision Tree</option>
+                                    <option value="Both">Both</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="lassoTypeContainer">
+                                <label class="form-label">Lasso Type</label>
+                                <select class="form-select" id="lassoType">
+                                    <option value="CD">Coordinate Descent</option>
+                                    <option value="GD">Gradient Descent</option>
+                                    <option value="PGD">Proximal Gradient Descent</option>
+                                    <option value="All">All Variants</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" id="useSklearn">
+                            <label class="form-check-label" for="useSklearn">Use Scikit-learn Implementation</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Input Features</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <div class="row">
+                                {% for feature, mean in feature_means.items() %}
+                                <div class="col-md-4 feature-group">
+                                    <label class="feature-label">{{ feature }}</label>
+                                    {% if feature == 'Area' %}
+                                    <select class="form-select" name="{{ feature }}">
+                                        <option value="">Default: {{ area_values[0] }}</option>
+                                        {% for value in area_values %}
+                                        <option value="{{ value }}">{{ value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% elif feature in ['Rural population', 'Urban population', 'Total Population - Male', 'Total Population - Female', 'Year'] %}
+                                    <input type="number" class="form-control" name="{{ feature }}" step="1" placeholder="Default: {{ mean|int }}" data-default="{{ mean|int }}">
+                                    {% else %}
+                                    <input type="number" class="form-control" name="{{ feature }}" step="any" placeholder="Default: {{ "%.2f"|format(mean) }}" data-default="{{ "%.2f"|format(mean) }}">
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-primary">Predict</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing prediction...</p>
+                </div>
+
+                <div class="results" style="display: none;">
+                    <h4 class="mb-4">Prediction Results</h4>
+                    <div id="predictionResults"></div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="analysis" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Decision Tree Visualization</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Tree Type:</label>
+                            <div class="form-check form-switch d-inline-block ms-2">
+                                <input class="form-check-input" type="checkbox" id="treeTypeToggle">
+                                <label class="form-check-label" for="treeTypeToggle">Sklearn Tree</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <button class="btn btn-primary" id="showSuperTreeBtn" type="button">Show Interactive Tree</button>
+                            <button class="btn btn-secondary" id="fullscreenTreeBtn" type="button" style="margin-left: 10px;">Full Screen</button>
+                        </div>
+                        <div id="treeWidget" style="min-height: 400px; background: #f8fafc; border-radius: 10px; padding: 1rem; position: relative;">
+                            <svg id="treeSVG" width="100%" height="400" style="display:none;"></svg>
+                            <iframe id="superTreeFrame" style="width:100%;height:500px;border:none;display:none;"></iframe>
+                        </div>
+                        <div id="treePathInfo" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+    <script>
+        let lastPredictionFeatures = null;
+        let lastTreeType = 'scratch';
+        let lastTreePath = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const algorithmSelect = document.getElementById('algorithm');
+            const lassoTypeContainer = document.getElementById('lassoTypeContainer');
+            const predictionForm = document.getElementById('predictionForm');
+            const loading = document.querySelector('.loading');
+            const results = document.querySelector('.results');
+            const predictionResults = document.getElementById('predictionResults');
+
+            // Auto-fill mean value if input is left empty on blur
+            document.querySelectorAll('#predictionForm input[type="number"]').forEach(function(input) {
+                input.addEventListener('blur', function() {
+                    if (this.value === '') {
+                        this.value = this.getAttribute('data-default');
+                    }
+                });
+            });
+
+            // Show/hide Lasso type selection based on algorithm
+            algorithmSelect.addEventListener('change', function() {
+                lassoTypeContainer.style.display = this.value === 'Lasso' || this.value === 'Both' ? 'block' : 'none';
+            });
+
+            // Handle form submission
+            predictionForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Show loading
+                loading.style.display = 'block';
+                results.style.display = 'none';
+
+                // Collect form data
+                const formData = new FormData(predictionForm);
+                const features = {};
+                for (let [key, value] of formData.entries()) {
+                    if (key !== 'algorithm' && key !== 'lasso_type' && key !== 'use_sklearn') {
+                        features[key] = value || '';  // Use empty string if value is empty
+                    }
+                }
+
+                // Safely get useSklearn checkbox value
+                const useSklearnCheckbox = document.getElementById('useSklearn');
+                const useSklearn = useSklearnCheckbox ? useSklearnCheckbox.checked : false;
+
+                // Prepare request data
+                const requestData = {
+                    features: features,
+                    algorithm: algorithmSelect.value,
+                    lasso_type: document.getElementById('lassoType').value,
+                    use_sklearn: useSklearn
+                };
+                
+                try {
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    const predictions = await response.json();
+                    
+                    if (predictions.error) {
+                        predictionResults.innerHTML = `
+                            <div class="alert alert-danger">
+                                Error: ${predictions.error}
+                            </div>
+                        `;
+                    } else {
+                        // Display results
+                        let resultsHtml = '<div class="row">';
+                        for (const [model, prediction] of Object.entries(predictions)) {
+                            resultsHtml += `
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${model}</h6>
+                                            <p class="prediction-value">${prediction.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        resultsHtml += '</div>';
+                        
+                        predictionResults.innerHTML = resultsHtml;
+                        // Store last prediction features and tree type
+                        lastPredictionFeatures = features;
+                        lastTreeType = document.getElementById('treeTypeToggle') ? (document.getElementById('treeTypeToggle').checked ? 'sklearn' : 'scratch') : 'scratch';
+                        // Fetch and highlight path
+                        fetchAndHighlightTreePath();
+                    }
+                    results.style.display = 'block';
+                } catch (error) {
+                    console.error('Error:', error);
+                    predictionResults.innerHTML = `
+                        <div class="alert alert-danger">
+                            Error: ${error.message}
+                        </div>
+                    `;
+                    results.style.display = 'block';
+                } finally {
+                    loading.style.display = 'none';
+                }
+            });
+        });
+
+        // D3.js tree rendering
+        function renderD3Tree(treeData, highlightNames = []) {
+            const svg = d3.select('#treeSVG');
+            svg.selectAll('*').remove();
+            const width = document.getElementById('treeWidget').offsetWidth;
+            const height = 400;
+            svg.attr('width', width).attr('height', height);
+
+            const root = d3.hierarchy(treeData);
+            const treeLayout = d3.tree().size([width - 40, height - 60]);
+            treeLayout(root);
+
+            // Draw links
+            svg.append('g')
+                .selectAll('path')
+                .data(root.links())
+                .join('path')
+                .attr('d', d3.linkVertical()
+                    .x(d => d.x + 20)
+                    .y(d => d.y + 30))
+                .attr('fill', 'none')
+                .attr('stroke', '#a5b4fc')
+                .attr('stroke-width', 2);
+
+            // Draw nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(root.descendants())
+                .join('g')
+                .attr('transform', d => `translate(${d.x + 20},${d.y + 30})`);
+
+            node.append('circle')
+                .attr('r', 18)
+                .attr('fill', d => highlightNames.includes(d.data.name) ? '#fde68a' : (d.data.is_leaf ? '#38bdf8' : '#6366f1'))
+                .attr('stroke', d => highlightNames.includes(d.data.name) ? '#b91c1c' : '#fff')
+                .attr('stroke-width', d => highlightNames.includes(d.data.name) ? 4 : 2);
+
+            node.append('text')
+                .attr('dy', 5)
+                .attr('x', 0)
+                .attr('text-anchor', 'middle')
+                .attr('font-size', d => d.data.is_leaf ? '0.9rem' : '1rem')
+                .attr('fill', d => highlightNames.includes(d.data.name) ? '#b91c1c' : '#fff')
+                .text(d => d.data.is_leaf ? d.data.value.toFixed(2) : d.data.name.split('<=')[0]);
+
+            // Add tooltips for full node names
+            node.append('title')
+                .text(d => d.data.name);
+        }
+
+        function treeToD3Data(node) {
+            // Recursively convert backend tree JSON to D3 hierarchy format
+            let d3Node = {
+                name: node.name,
+                is_leaf: node.is_leaf,
+                value: node.value,
+                children: []
+            };
+            if (!node.is_leaf) {
+                if (node.left) d3Node.children.push(treeToD3Data(node.left));
+                if (node.right) d3Node.children.push(treeToD3Data(node.right));
+            }
+            if (d3Node.children.length === 0) delete d3Node.children;
+            return d3Node;
+        }
+
+        function loadTreeWidget(treeType, highlightPathNames) {
+            $.getJSON(`/tree_structure?type=${treeType}`, function(treeData) {
+                const d3Data = treeToD3Data(treeData);
+                renderD3Tree(d3Data, highlightPathNames || []);
+            });
+        }
+
+        function fetchAndHighlightTreePath() {
+            if (!lastPredictionFeatures) return;
+            const treeType = lastTreeType;
+            fetch('/tree_path', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ features: lastPredictionFeatures, type: treeType })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (treeType === 'sklearn' && data.path_indices) {
+                    // For sklearn, fallback: just reload tree and show path indices
+                    loadTreeWidget(treeType);
+                    document.getElementById('treePathInfo').innerHTML = `<b>Path node indices:</b> ${data.path_indices.join(' → ')}`;
+                } else if (treeType === 'scratch' && data.path_nodes) {
+                    // For scratch, highlight by node names (since we use names as unique keys)
+                    // We'll reload the tree and highlight the path
+                    // For now, just reload and show a message
+                    loadTreeWidget(treeType); // fallback: no highlight
+                    document.getElementById('treePathInfo').innerHTML = `<b>Path node ids:</b> ${data.path_nodes.join(' → ')}`;
+                } else {
+                    document.getElementById('treePathInfo').innerHTML = '';
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            // Initial load: Scratch tree
+            loadTreeWidget('scratch');
+            $('#treeTypeToggle').on('change', function() {
+                lastTreeType = this.checked ? 'sklearn' : 'scratch';
+                if (lastPredictionFeatures) {
+                    fetchAndHighlightTreePath();
+                } else {
+                    loadTreeWidget(lastTreeType);
+                    document.getElementById('treePathInfo').innerHTML = '';
+                }
+            });
+            // SuperTree button logic
+            $('#showSuperTreeBtn').on('click', function() {
+                if (!lastPredictionFeatures) {
+                    alert('Please make a prediction first!');
+                    return;
+                }
+                $('#treeSVG').hide();
+                $('#superTreeFrame').show();
+                fetch('/supertree', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ features: lastPredictionFeatures })
+                })
+                .then(res => res.text())
+                .then(html => {
+                    const iframe = document.getElementById('superTreeFrame');
+                    const blob = new Blob([html], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    iframe.src = url;
+                });
+            });
+        });
+
+        // Fullscreen logic
+        const treeWidget = document.getElementById('treeWidget');
+        const fullscreenBtn = document.getElementById('fullscreenTreeBtn');
+        let exitBtn = null;
+
+        fullscreenBtn.addEventListener('click', function() {
+            treeWidget.classList.add('fullscreen');
+            // Add exit button if not present
+            if (!exitBtn) {
+                exitBtn = document.createElement('button');
+                exitBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Full Screen';
+                exitBtn.className = 'exit-fullscreen-btn btn btn-danger';
+                exitBtn.onclick = function() {
+                    treeWidget.classList.remove('fullscreen');
+                };
+                treeWidget.appendChild(exitBtn);
+            }
+            exitBtn.style.display = 'block';
+        });
+
+        // Allow exiting full screen with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && treeWidget.classList.contains('fullscreen')) {
+                treeWidget.classList.remove('fullscreen');
+                if (exitBtn) exitBtn.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html> 

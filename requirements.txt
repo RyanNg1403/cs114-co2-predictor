@@ -1,0 +1,8 @@
+flask
+panda
+numpy
+scikit-learn
+joblib
+supertree
+ace_tools_open
+mlcroissant
