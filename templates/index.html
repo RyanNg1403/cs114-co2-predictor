@@ -214,7 +214,10 @@
                 <button class="nav-link active" id="prediction-tab" data-bs-toggle="tab" data-bs-target="#prediction" type="button" role="tab">Prediction</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="analysis-tab" data-bs-toggle="tab" data-bs-target="#analysis" type="button" role="tab">Analysis</button>
+                <button class="nav-link" id="dt-visualization-tab" data-bs-toggle="tab" data-bs-target="#dt-visualization" type="button" role="tab">DT Visualization</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="lasso-visualization-tab" data-bs-toggle="tab" data-bs-target="#lasso-visualization" type="button" role="tab">Lasso Visualization</button>
             </li>
         </ul>
 
@@ -296,7 +299,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="analysis" role="tabpanel">
+            <div class="tab-pane fade" id="dt-visualization" role="tabpanel">
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Decision Tree Visualization</h5>
@@ -311,11 +314,44 @@
                             <button class="btn btn-primary" id="showSuperTreeBtn" type="button">Show Interactive Tree</button>
                             <button class="btn btn-secondary" id="fullscreenTreeBtn" type="button" style="margin-left: 10px;">Full Screen</button>
                         </div>
-                        <div id="treeWidget" style="min-height: 400px; background: #f8fafc; border-radius: 10px; padding: 1rem; position: relative;">
-                            <svg id="treeSVG" width="100%" height="400" style="display:none;"></svg>
-                            <iframe id="superTreeFrame" style="width:100%;height:500px;border:none;display:none;"></iframe>
+                        <div id="treeWidget">
+                            <div id="treeSVG"></div>
+                            <iframe id="superTreeFrame" style="display: none; width: 100%; height: 600px; border: none;"></iframe>
                         </div>
                         <div id="treePathInfo" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="lasso-visualization" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Lasso Coefficient Analysis</h5>
+                        <div class="mb-3">
+                            <label for="alphaSlider" class="form-label">Lasso Penalty (α): <span id="alphaValue">0.0</span></label>
+                            <input type="range" class="form-range" id="alphaSlider" min="0" max="40" step="0.5" value="0">
+                            <div class="mt-2">
+                                <small class="text-muted">Non-zero coefficients: <span id="nonZeroCount">0</span></small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div id="coefficientPlot1"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="coefficientPlot2"></div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5 class="card-title">Loss Analysis</h5>
+                                <div class="mb-3">
+                                    <label for="lossAlphaSlider" class="form-label">Loss Analysis Alpha (α): <span id="lossAlphaValue">0.0</span></label>
+                                    <input type="range" class="form-range" id="lossAlphaSlider" min="0" max="40" step="0.5" value="0">
+                                </div>
+                                <div id="lossPlot"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -325,6 +361,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
         let lastPredictionFeatures = null;
         let lastTreeType = 'scratch';
@@ -596,6 +633,247 @@
             if (e.key === 'Escape' && treeWidget.classList.contains('fullscreen')) {
                 treeWidget.classList.remove('fullscreen');
                 if (exitBtn) exitBtn.style.display = 'none';
+            }
+        });
+
+        // Lasso coefficient visualization (robust version)
+        document.addEventListener('DOMContentLoaded', function() {
+            const alphaSlider = document.getElementById('alphaSlider');
+            const alphaValue = document.getElementById('alphaValue');
+            const nonZeroCount = document.getElementById('nonZeroCount');
+            const lossAlphaSlider = document.getElementById('lossAlphaSlider');
+            const lossAlphaValue = document.getElementById('lossAlphaValue');
+            let lassoData = null;
+
+            // Helper to show error in plot containers
+            function showPlotError(msg) {
+                const plot1 = document.getElementById('coefficientPlot1');
+                const plot2 = document.getElementById('coefficientPlot2');
+                const lossPlot = document.getElementById('lossPlot');
+                if (plot1) plot1.innerHTML = `<div class='alert alert-danger'>${msg}</div>`;
+                if (plot2) plot2.innerHTML = '';
+                if (lossPlot) lossPlot.innerHTML = '';
+            }
+
+            // Update coefficient plots on slider change
+            alphaSlider.addEventListener('input', function() {
+                const alpha = parseFloat(this.value);
+                alphaValue.textContent = alpha.toFixed(1);
+                if (lassoData) {
+                    updateCoefficientPlots(alpha);
+                } else {
+                    showPlotError('Lasso data not loaded. Try switching tabs or reload the page.');
+                }
+            });
+
+            // Update loss plot on its slider change
+            lossAlphaSlider.addEventListener('input', function() {
+                const alpha = parseFloat(this.value);
+                lossAlphaValue.textContent = alpha.toFixed(1);
+                if (lassoData) {
+                    updateLossPlot(alpha);
+                }
+            });
+
+            // Always call updatePlots on tab show
+            document.getElementById('lasso-visualization-tab').addEventListener('shown.bs.tab', async function() {
+                await ensureLassoDataAndPlot();
+            });
+
+            // On initial load, if Lasso tab is active, trigger data load and plot
+            if (document.getElementById('lasso-visualization').classList.contains('active')) {
+                ensureLassoDataAndPlot();
+            }
+
+            async function ensureLassoDataAndPlot() {
+                if (!lassoData) {
+                    try {
+                        const response = await fetch('/lasso_coefficients');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        lassoData = await response.json();
+                        if (!lassoData || !lassoData.coefficients) {
+                            throw new Error('Invalid data format received');
+                        }
+                    } catch (error) {
+                        showPlotError('Error loading data: ' + error.message);
+                        return;
+                    }
+                }
+                updateCoefficientPlots(parseFloat(alphaSlider.value));
+                updateLossPlot(parseFloat(lossAlphaSlider.value));
+            }
+
+            function updateCoefficientPlots(alpha) {
+                if (!lassoData) {
+                    showPlotError('Lasso data not loaded. Try switching tabs or reload the page.');
+                    return;
+                }
+
+                // Get available alphas and find closest one
+                const availableAlphaKeys = Object.keys(lassoData.coefficients).sort((a, b) => parseFloat(a) - parseFloat(b));
+                const availableAlphas = availableAlphaKeys.map(a => parseFloat(a));
+                let closestAlpha = availableAlphas.reduce((prev, curr) =>
+                    Math.abs(curr - alpha) < Math.abs(prev - alpha) ? curr : prev
+                );
+
+                // Update slider if needed
+                if (alpha !== closestAlpha) {
+                    alphaSlider.value = closestAlpha;
+                    alphaValue.textContent = closestAlpha.toFixed(1);
+                }
+
+                const alphaKey = closestAlpha.toFixed(1);
+                const coefficients = lassoData.coefficients[alphaKey];
+                const featureNames = lassoData.feature_names;
+
+                if (!coefficients || !featureNames) {
+                    showPlotError('No coefficients or feature names available');
+                    return;
+                }
+
+                try {
+                    nonZeroCount.textContent = lassoData.non_zero_counts[alphaKey];
+
+                    // Calculate max absolute value for each coefficient across all alphas
+                    const maxAbsCoeffs = featureNames.map((_, idx) => {
+                        return Math.max(...availableAlphaKeys.map(alpha => 
+                            Math.abs(lassoData.coefficients[alpha][idx])
+                        ));
+                    });
+
+                    // Normalize coefficients using their respective max values
+                    const normalizedCoeffs = coefficients.map((coeff, idx) => 
+                        coeff / maxAbsCoeffs[idx]
+                    );
+
+                    // Split features into two groups
+                    const midPoint = Math.ceil(featureNames.length / 2);
+                    const features1 = featureNames.slice(0, midPoint);
+                    const features2 = featureNames.slice(midPoint);
+                    const coeffs1 = normalizedCoeffs.slice(0, midPoint);
+                    const coeffs2 = normalizedCoeffs.slice(midPoint);
+
+                    // Create bar plots
+                    const plot1 = {
+                        data: [{
+                            type: 'bar',
+                            x: features1,
+                            y: coeffs1,
+                            marker: {
+                                color: coeffs1.map(c => c > 0 ? '#6366f1' : '#ef4444')
+                            },
+                            hovertemplate: 'Feature: %{x}<br>Normalized Coefficient: %{y:.4f}<extra></extra>'
+                        }],
+                        layout: {
+                            title: 'Coefficients (Part 1)',
+                            xaxis: { 
+                                title: 'Features',
+                                tickangle: 45,
+                                fixedrange: true
+                            },
+                            yaxis: { 
+                                title: 'Normalized Coefficient',
+                                range: [-1.1, 1.1],
+                                fixedrange: true
+                            },
+                            margin: { b: 100, l: 50, r: 50, t: 50 },
+                            height: 500,
+                            dragmode: false
+                        },
+                        config: {
+                            displayModeBar: false
+                        }
+                    };
+
+                    const plot2 = {
+                        data: [{
+                            type: 'bar',
+                            x: features2,
+                            y: coeffs2,
+                            marker: {
+                                color: coeffs2.map(c => c > 0 ? '#6366f1' : '#ef4444')
+                            },
+                            hovertemplate: 'Feature: %{x}<br>Normalized Coefficient: %{y:.4f}<extra></extra>'
+                        }],
+                        layout: {
+                            title: 'Coefficients (Part 2)',
+                            xaxis: { 
+                                title: 'Features',
+                                tickangle: 45,
+                                fixedrange: true
+                            },
+                            yaxis: { 
+                                title: 'Normalized Coefficient',
+                                range: [-1.1, 1.1],
+                                fixedrange: true
+                            },
+                            margin: { b: 100, l: 50, r: 50, t: 50 },
+                            height: 500,
+                            dragmode: false
+                        },
+                        config: {
+                            displayModeBar: false
+                        }
+                    };
+
+                    Plotly.newPlot('coefficientPlot1', plot1.data, plot1.layout);
+                    Plotly.newPlot('coefficientPlot2', plot2.data, plot2.layout);
+
+                } catch (error) {
+                    showPlotError('Error updating coefficient plots: ' + error.message);
+                }
+            }
+
+            function updateLossPlot(alpha) {
+                if (!lassoData) return;
+
+                try {
+                    const availableAlphaKeys = Object.keys(lassoData.coefficients).sort((a, b) => parseFloat(a) - parseFloat(b));
+                    const availableAlphas = availableAlphaKeys.map(a => parseFloat(a));
+                    let closestAlpha = availableAlphas.reduce((prev, curr) =>
+                        Math.abs(curr - alpha) < Math.abs(prev - alpha) ? curr : prev
+                    );
+
+                    if (alpha !== closestAlpha) {
+                        lossAlphaSlider.value = closestAlpha;
+                        lossAlphaValue.textContent = closestAlpha.toFixed(1);
+                    }
+
+                    const alphaKey = closestAlpha.toFixed(1);
+                    const lossHistoryTraces = [];
+
+                    if (lassoData.loss_histories && lassoData.loss_histories[alphaKey]) {
+                        const history = lassoData.loss_histories[alphaKey];
+                        const iterations = history.map(h => h[0]);
+                        const historyLosses = history.map(h => h[1]);
+                        lossHistoryTraces.push({
+                            x: iterations,
+                            y: historyLosses,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: `Training Loss (α=${alphaKey})`,
+                            line: { color: '#6366f1' }
+                        });
+                    }
+
+                    const layout = {
+                        title: 'Training Loss History',
+                        xaxis: { 
+                            title: 'Iterations',
+                            range: [0, 10000]
+                        },
+                        yaxis: { title: 'Loss (MSE + L1 Penalty)' },
+                        height: 400,
+                        dragmode: false
+                    };
+
+                    Plotly.newPlot('lossPlot', lossHistoryTraces, layout);
+
+                } catch (error) {
+                    showPlotError('Error updating loss plot: ' + error.message);
+                }
             }
         });
     </script>

@@ -36,9 +36,9 @@ feature_means = pd.Series(X_cleaned.mean(), index=X_cleaned.columns)
 joblib.dump(feature_means, 'models/feature_means.joblib')
 
 # Train and save Lasso models
-alpha = 20
+alpha = 0.0001
 tol = 1e-6
-max_iter = 10000
+max_iter = 100000
 lr = 0.05
 
 # Lasso CD
@@ -49,12 +49,12 @@ joblib.dump(lasso_cd, 'models/lasso_cd.joblib')
 # Lasso GD
 lasso_gd = LassoGD(alpha=alpha, lr=lr, max_iter=max_iter, tol=tol)
 lasso_gd.fit(X_cleaned, y_cleaned)
-joblib.dump({'coef_': lasso_gd.coef_, 'intercept_': lasso_gd.intercept_}, 'models/lasso_gd_params.joblib')
+joblib.dump(lasso_gd, 'models/lasso_gd.joblib')
 
 # Lasso PGD
 lasso_pgd = LassoPGD(alpha=alpha, lr=lr, max_iter=max_iter, tol=tol)
 lasso_pgd.fit(X_cleaned, y_cleaned)
-joblib.dump({'coef_': lasso_pgd.coef_, 'intercept_': lasso_pgd.intercept_}, 'models/lasso_pgd_params.joblib')
+joblib.dump(lasso_pgd, 'models/lasso_pgd.joblib')
 
 # Sklearn Lasso
 sklearn_lasso = Lasso(alpha=alpha, tol=tol, max_iter=max_iter)

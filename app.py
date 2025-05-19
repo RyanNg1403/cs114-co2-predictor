@@ -27,6 +27,16 @@ data.Area = area_encoder.transform(data.Area)
 X_train = data.drop("total_emission", axis=1)
 y_train = data["total_emission"]
 
+# Filter data to 90% range
+lower_bound = y_train.quantile(0.05)  # 5th percentile
+upper_bound = y_train.quantile(0.95)  # 95th percentile
+mask = (y_train >= lower_bound) & (y_train <= upper_bound)
+y_train = y_train[mask]
+X_train = X_train[mask]
+
+# Compute feature means from filtered data
+feature_means = X_train.mean()
+
 # Load Lasso models
 lasso_cd = joblib.load('models/lasso_cd.joblib')
 lasso_gd_params = joblib.load('models/lasso_gd_params.joblib')
@@ -74,15 +84,15 @@ def predict():
         if algorithm in ['Lasso', 'Both']:
             if lasso_type == 'All':
                 predictions['Lasso CD (Scratch)'] = float(lasso_cd.predict(feature_df)[0])
-                predictions['Lasso GD (Scratch)'] = float(np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])
-                predictions['Lasso PGD (Scratch)'] = float(np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])
+                predictions['Lasso GD (Scratch)'] = float((np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])[0])
+                predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             else:
                 if lasso_type == 'CD':
                     predictions['Lasso CD (Scratch)'] = float(lasso_cd.predict(feature_df)[0])
                 elif lasso_type == 'GD':
-                    predictions['Lasso GD (Scratch)'] = float(np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])
+                    predictions['Lasso GD (Scratch)'] = float((np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])[0])
                 elif lasso_type == 'PGD':
-                    predictions['Lasso PGD (Scratch)'] = float(np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])
+                    predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             if use_sklearn:
                 predictions['Lasso (Sklearn)'] = float(sklearn_lasso.predict(feature_df)[0])
 
@@ -118,8 +128,8 @@ def generate_supertree():
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as temp_file:
             # Create SuperTree instance with sklearn model using the actual training data
             st = SuperTree(sklearn_dt, 
-                          feature_data=X_train[:1000],  # The actual training features
-                          target_data=y_train[:1000],   # The actual training targets
+                          feature_data=X_train[:500],  # The actual training features
+                          target_data=y_train[:500],   # The actual training targets
                           feature_names=feature_names,
                           target_names=['CO2 Emission'])
             
@@ -134,6 +144,31 @@ def generate_supertree():
             os.unlink(temp_file.name)
             
             return html_content
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/lasso_coefficients', methods=['GET'])
+def get_lasso_coefficients():
+    try:
+        # Load all pre-trained Lasso models
+        alpha_values = np.arange(0, 40.5, 0.5)
+        coefficients = {}
+        non_zero_counts = {}
+        loss_histories = joblib.load('models/lasso_loss_histories.joblib')
+        for alpha in alpha_values:
+            # Always use one decimal place for alpha in the filename
+            model_path = f'models/cd_lasso_at_{alpha:.1f}.joblib'
+            if os.path.exists(model_path):
+                model = joblib.load(model_path)
+                alpha_key = f'{alpha:.1f}'  # Use string key with one decimal place
+                coefficients[alpha_key] = model.coef_.tolist()
+                non_zero_counts[alpha_key] = int(np.sum(np.abs(model.coef_) > 1e-10))
+        return jsonify({
+            'coefficients': coefficients,
+            'non_zero_counts': non_zero_counts,
+            'feature_names': feature_names,
+            'loss_histories': loss_histories
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

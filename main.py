@@ -28,6 +28,7 @@ class LassoCD:
         self.alpha = alpha
         self.tol = tol
         self.max_iter = max_iter
+        self.loss_history = []  # Track loss values during training
 
     @staticmethod
     def _soft_threshold(rho, alpha):
@@ -37,6 +38,13 @@ class LassoCD:
             return rho + alpha
         else:
             return 0.0
+
+    def _compute_loss(self, X, y, w):
+        """Compute the loss (MSE + L1 penalty)"""
+        y_pred = X.dot(w)
+        mse = np.mean((y - y_pred) ** 2)
+        l1_penalty = self.alpha * np.sum(np.abs(w))
+        return mse + l1_penalty
 
     def fit(self, X, y):
         # Convert to numpy arrays
@@ -58,6 +66,10 @@ class LassoCD:
         # Precompute column norms
         col_norms = np.sum(Xs ** 2, axis=0)
 
+        # Track loss every 500 iterations
+        track_interval = 500
+        self.loss_history = []
+
         for itr in range(self.max_iter):
             w_old = w.copy()
 
@@ -67,12 +79,17 @@ class LassoCD:
                 rho = np.dot(Xs[:, j], residual) / n_samples
                 w[j] = self._soft_threshold(rho, self.alpha) / (col_norms[j] / n_samples)
 
+            # Track loss
+            if (itr + 1) % track_interval == 0:
+                loss = self._compute_loss(Xs, ys, w)
+                self.loss_history.append((itr + 1, loss))
+
             # Check convergence
             if np.max(np.abs(w - w_old)) < self.tol:
                 break
 
         # Store coefficients in original scale
-        self.coef_     = w / np.where(self.X_std == 0, 1.0, self.X_std)
+        self.coef_ = w / np.where(self.X_std == 0, 1.0, self.X_std)
         self.intercept_ = self.y_mean - self.X_mean.dot(self.coef_)
         return self
 
@@ -127,6 +144,10 @@ class LassoGD:
         self.intercept_ = self.y_mean - np.dot(self.X_mean, self.coef_)
 
         return self
+    
+    def predict(self, X):
+        X = np.asarray(X, dtype=float)
+        return X.dot(self.coef_) + self.intercept_
     
 # Lasso via Proximal Gradient Descent
 
