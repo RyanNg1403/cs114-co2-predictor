@@ -203,6 +203,31 @@
             background: linear-gradient(90deg, #4338ca 0%, #0ea5e9 100%);
             box-shadow: 0 4px 16px rgba(99,102,241,0.16);
         }
+        .recommendations-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #4b5563;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .recommendations-content h3 {
+            color: #6366f1;
+            font-size: 1.3rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .recommendations-content ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .recommendations-content li {
+            margin-bottom: 0.5rem;
+        }
+        .recommendations-content strong {
+            color: #4338ca;
+        }
     </style>
 </head>
 <body>
@@ -218,6 +243,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="lasso-visualization-tab" data-bs-toggle="tab" data-bs-target="#lasso-visualization" type="button" role="tab">Lasso Visualization</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="llm-recommendations-tab" data-bs-toggle="tab" data-bs-target="#llm-recommendations" type="button" role="tab">AI Recommendations</button>
             </li>
         </ul>
 
@@ -355,6 +383,29 @@
                     </div>
                 </div>
             </div>
+
+            <div class="tab-pane fade" id="llm-recommendations" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">AI-Powered Recommendations</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> Get personalized recommendations based on your CO2 emission prediction results.
+                        </div>
+                        <div class="text-center mb-4">
+                            <button id="getRecommendationsBtn" class="btn btn-primary">
+                                <i class="fas fa-robot"></i> Get AI Recommendations
+                            </button>
+                        </div>
+                        <div id="recommendationResults" class="mt-4">
+                            <div class="text-center">
+                                <p class="text-muted">Make a prediction with Lasso CD first to get AI-powered recommendations.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -362,10 +413,12 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         let lastPredictionFeatures = null;
         let lastTreeType = 'scratch';
         let lastTreePath = null;
+        let lastPredictions = null;  // Store last predictions globally
 
         document.addEventListener('DOMContentLoaded', function() {
             const algorithmSelect = document.getElementById('algorithm');
@@ -436,6 +489,9 @@
                             </div>
                         `;
                     } else {
+                        // Store predictions globally
+                        lastPredictions = predictions;
+                        
                         // Display results
                         let resultsHtml = '<div class="row">';
                         for (const [model, prediction] of Object.entries(predictions)) {
@@ -456,8 +512,6 @@
                         // Store last prediction features and tree type
                         lastPredictionFeatures = features;
                         lastTreeType = document.getElementById('treeTypeToggle') ? (document.getElementById('treeTypeToggle').checked ? 'sklearn' : 'scratch') : 'scratch';
-                        // Fetch and highlight path
-                        fetchAndHighlightTreePath();
                     }
                     results.style.display = 'block';
                 } catch (error) {
@@ -470,6 +524,65 @@
                     results.style.display = 'block';
                 } finally {
                     loading.style.display = 'none';
+                }
+            });
+
+            // Handle recommendations button click
+            document.getElementById('getRecommendationsBtn').addEventListener('click', async function() {
+                if (!lastPredictionFeatures || !lastPredictions || !lastPredictions['Lasso CD (Scratch)']) {
+                    alert('Please run prediction with Lasso CD first');
+                    return;
+                }
+                
+                const recommendationResults = document.getElementById('recommendationResults');
+                recommendationResults.innerHTML = `
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Generating recommendations...</p>
+                    </div>
+                `;
+                
+                try {
+                    const recommendationsResponse = await fetch('/get_recommendations', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            features: lastPredictionFeatures,
+                            predictions: lastPredictions
+                        })
+                    });
+                    
+                    const data = await recommendationsResponse.json();
+                    
+                    if (data.error) {
+                        recommendationResults.innerHTML = `
+                            <div class="alert alert-danger">
+                                Error: ${data.error}
+                            </div>
+                        `;
+                    } else {
+                        const html = marked.parse(data.recommendations || "");
+                        recommendationResults.innerHTML = `
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">AI Recommendations</h6>
+                                    <div class="recommendations-content">
+                                        ${html}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    recommendationResults.innerHTML = `
+                        <div class="alert alert-danger">
+                            Error: ${error.message}
+                        </div>
+                    `;
                 }
             });
         });

@@ -1,8 +1,13 @@
 flask
-panda
 numpy
+pandas
 scikit-learn
+ucimlrepo
 joblib
+python-dotenv
+pydantic-ai
+ipywidgets
 supertree
+seaborn
 ace_tools_open
 mlcroissant

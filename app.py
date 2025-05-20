@@ -2,15 +2,34 @@ from flask import Flask, render_template, request, jsonify, Response
 import joblib
 import numpy as np
 import pandas as pd
-import json
-from sklearn.tree import _tree
 from supertree import SuperTree
 import tempfile
 import os
-from sklearn.preprocessing import LabelEncoder
-from ipywidgets.embed import embed_minimal_html
+from llm_recommendations import get_recommendations
+import asyncio
+from pydantic_ai import Agent
+from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.models.groq import GroqModel
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+
 
 app = Flask(__name__)
+
+
+# Initialize Gemini model with correct configuration
+if os.getenv('MODEL_PROVIDER') == 'GOOGLE':
+    model = GeminiModel('gemini-2.0-flash', provider='google-gla')
+elif os.getenv('MODEL_PROVIDER') == 'GROQ':
+    model = GroqModel('llama3-8b-8192')
+else:
+    raise ValueError("Invalid model provider")
+
+agent = Agent(model)
 
 # Load models and feature means
 feature_means = joblib.load('models/feature_means.joblib')
@@ -124,26 +143,28 @@ def generate_supertree():
                 feature_dict[feature] = feature_means[feature]
         prediction_sample = pd.DataFrame([feature_dict])
         
-        # Create a temporary file to store the HTML
-        with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as temp_file:
-            # Create SuperTree instance with sklearn model using the actual training data
-            st = SuperTree(sklearn_dt, 
-                          feature_data=X_train[:500],  # The actual training features
-                          target_data=y_train[:500],   # The actual training targets
-                          feature_names=feature_names,
-                          target_names=['CO2 Emission'])
-            
-            # Save the HTML to the temporary file with the prediction sample
-            st.save_html(temp_file.name, show_sample=prediction_sample.to_numpy()[0].tolist())
-            
-            # Read the HTML content
-            with open(temp_file.name, 'r') as f:
-                html_content = f.read()
-            
-            # Clean up the temporary file
-            os.unlink(temp_file.name)
-            
-            return html_content
+        # Create a temporary file to store the HTML (Windows fix: close before use)
+        temp_file = tempfile.NamedTemporaryFile(suffix='.html', delete=False)
+        temp_file.close()  # Close so it can be accessed by other processes
+        
+        # Create SuperTree instance with sklearn model using the actual training data
+        st = SuperTree(sklearn_dt, 
+                      feature_data=X_train[:500],  # The actual training features
+                      target_data=y_train[:500],   # The actual training targets
+                      feature_names=feature_names,
+                      target_names=['CO2 Emission'])
+        
+        # Save the HTML to the temporary file with the prediction sample
+        st.save_html(temp_file.name, show_sample=prediction_sample.to_numpy()[0].tolist())
+        
+        # Read the HTML content
+        with open(temp_file.name, 'r') as f:
+            html_content = f.read()
+        
+        # Clean up the temporary file
+        os.unlink(temp_file.name)
+        
+        return html_content
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -169,6 +190,43 @@ def get_lasso_coefficients():
             'feature_names': feature_names,
             'loss_histories': loss_histories
         })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/get_recommendations', methods=['POST'])
+def recommendations():
+    try:
+        data = request.get_json()
+        features = data['features']
+        predictions = data['predictions']
+        print(features["Area"])
+        # Check if LassoCD prediction exists
+        if 'Lasso CD (Scratch)' not in predictions:
+            return jsonify({'error': 'Please run prediction with Lasso CD first'}), 400
+            
+        # Filter predictions to only include LassoCD
+        lasso_cd_prediction = {'Lasso CD (Scratch)': predictions['Lasso CD (Scratch)']}
+        
+        # Create feature vector with defaults
+        feature_dict = {}
+        for feature in feature_means.index:
+            if feature in features and features[feature] != '':
+                value = float(features[feature]) if feature != 'Area' else features[feature]
+                feature_dict[feature] = value
+            else:
+                feature_dict[feature] = feature_means[feature] if feature != 'Area' else "Afghanistan"
+        # Get recommendations from LLM with processed features
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        recommendations = loop.run_until_complete(get_recommendations(feature_dict, lasso_cd_prediction, agent))
+        return jsonify({'recommendations': recommendations})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
