@@ -1,6 +1,6 @@
 # CO2 Emission Predictor
 
-A web application for predicting and analyzing CO2 emissions from agricultural and food production data. The app provides interactive model predictions, decision tree visualizations, Lasso regression analysis, and AI-powered recommendations for emission reduction.
+A web application for predicting and analyzing CO2 emissions from agricultural and food production data. The app provides interactive model predictions, decision tree visualizations, Lasso regression analysis, and AI-powered recommendations for emission reduction. Dataset link: [click here](https://www.kaggle.com/datasets/alessandrolobello/agri-food-co2-emission-dataset-forecasting-ml/data)
 
 ---
 
