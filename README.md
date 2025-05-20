@@ -149,9 +149,5 @@ python app.py
 ## Acknowledgements
 
 - Data and domain inspiration from agricultural and food production CO2 emission studies.
-- Uses [SuperTree](https://github.com/nhatthm/supertree) for interactive tree visualization.
-- LLM recommendations powered by [pydantic-ai](https://github.com/pydantic/ai).
-
----
-
-**For License and Contribution guidelines, please see the respective sections.** 
+- Uses [SuperTree](https://github.com/mljar/supertree) for interactive tree visualization.
+- LLM recommendations powered by [pydantic-ai](https://github.com/pydantic/pydantic-ai).
