@@ -380,6 +380,23 @@
                                 <div id="lossPlot"></div>
                             </div>
                         </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5 class="card-title">Partial Dependence & ICE Curves</h5>
+                                <div class="mb-3 row align-items-center">
+                                    <div class="col-md-4">
+                                        <label for="pdpFeatureSelect" class="form-label">Feature:</label>
+                                        <select class="form-select" id="pdpFeatureSelect"></select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="pdpAlphaSlider" class="form-label">Lasso α: <span id="pdpAlphaValue">0.0</span></label>
+                                        <input type="range" class="form-range" id="pdpAlphaSlider" min="0" max="40" step="0.5" value="0">
+                                    </div>
+                                </div>
+                                <div id="pdpIcePlot" style="height: 500px;"></div>
+                                <div id="pdpIceLegend" class="mt-2"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -419,6 +436,9 @@
         let lastTreeType = 'scratch';
         let lastTreePath = null;
         let lastPredictions = null;  // Store last predictions globally
+        let pdpIceData = null;
+        let pdpIceFeatureNames = [];
+        let pdpIceAlphas = [];
 
         document.addEventListener('DOMContentLoaded', function() {
             const algorithmSelect = document.getElementById('algorithm');
@@ -988,6 +1008,88 @@
                     showPlotError('Error updating loss plot: ' + error.message);
                 }
             }
+        });
+
+        async function loadPdpIceData() {
+            if (pdpIceData) return;
+            try {
+                const response = await fetch('/lasso_pdp_ice');
+                const data = await response.json();
+                pdpIceData = data.data;
+                pdpIceFeatureNames = data.feature_names;
+                pdpIceAlphas = data.alphas;
+                // Populate feature dropdown
+                const select = document.getElementById('pdpFeatureSelect');
+                select.innerHTML = '';
+                pdpIceFeatureNames.forEach(f => {
+                    if (f === 'Area') return; // Exclude Area from dropdown
+                    const opt = document.createElement('option');
+                    opt.value = f;
+                    opt.textContent = f;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                document.getElementById('pdpIcePlot').innerHTML = `<div class='alert alert-danger'>Error loading PDP/ICE data: ${e}</div>`;
+            }
+        }
+
+        function updatePdpIcePlot() {
+            if (!pdpIceData) return;
+            const feature = document.getElementById('pdpFeatureSelect').value;
+            const alpha = parseFloat(document.getElementById('pdpAlphaSlider').value).toFixed(1);
+            document.getElementById('pdpAlphaValue').textContent = alpha;
+            const alphaData = pdpIceData[alpha];
+            if (!alphaData || !alphaData[feature]) {
+                document.getElementById('pdpIcePlot').innerHTML = `<div class='alert alert-warning'>No data for this feature/alpha.</div>`;
+                return;
+            }
+            const d = alphaData[feature];
+            // PDP line
+            const pdpTrace = {
+                x: d.x,
+                y: d.pdp,
+                mode: 'lines',
+                name: 'PDP (Average)',
+                line: { color: '#0ea5e9', width: 4 },
+            };
+            // Randomly select 5 ICE curves from the 50 available
+            let indices = Array.from({length: d.ice.length}, (_, i) => i);
+            indices = indices.sort(() => Math.random() - 0.5).slice(0, 5);
+            const iceTraces = indices.map((idx, i) => ({
+                x: d.x,
+                y: d.ice[idx],
+                mode: 'lines',
+                name: `ICE Sample ${idx+1}`,
+                line: { color: '#6366f1', width: 1, dash: 'dot' },
+                opacity: 0.7,
+                showlegend: false
+            }));
+            // Plot
+            Plotly.newPlot('pdpIcePlot', [pdpTrace, ...iceTraces], {
+                title: `PDP & ICE for ${feature} (α=${alpha})`,
+                xaxis: { title: feature },
+                yaxis: { title: 'Predicted CO₂ Emission' },
+                height: 500,
+                margin: { t: 50, l: 60, r: 30, b: 60 },
+                dragmode: false
+            }, {displayModeBar: false});
+            // Legend
+            document.getElementById('pdpIceLegend').innerHTML = `<span style='color:#0ea5e9;font-weight:bold;'>━</span> PDP (Average) &nbsp; <span style='color:#6366f1;'>━</span> ICE (Random 5 of 50 samples)`;
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // ... existing code ...
+            await loadPdpIceData();
+            // Set up feature dropdown and alpha slider
+            document.getElementById('pdpFeatureSelect').addEventListener('change', updatePdpIcePlot);
+            document.getElementById('pdpAlphaSlider').addEventListener('input', updatePdpIcePlot);
+            // Set slider min/max/step
+            document.getElementById('pdpAlphaSlider').min = 0;
+            document.getElementById('pdpAlphaSlider').max = 40;
+            document.getElementById('pdpAlphaSlider').step = 0.5;
+            document.getElementById('pdpAlphaSlider').value = 0;
+            // Initial plot
+            setTimeout(updatePdpIcePlot, 500);
         });
     </script>
 </body>

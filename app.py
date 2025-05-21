@@ -230,5 +230,32 @@ def recommendations():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/lasso_pdp_ice', methods=['GET'])
+def lasso_pdp_ice():
+    try:
+        pdp_ice_path = 'models/lasso_pdp_ice.joblib'
+        if not os.path.exists(pdp_ice_path):
+            return jsonify({'error': 'PDP/ICE data not found. Please run the precompute script.'}), 404
+        pdp_ice = joblib.load(pdp_ice_path)
+        data = pdp_ice['data']
+        feature_names = pdp_ice['feature_names']
+        alphas = pdp_ice['alphas']
+        # Optional filtering
+        feature = request.args.get('feature')
+        alpha = request.args.get('alpha')
+        filtered = data
+        if alpha:
+            filtered = {alpha: data.get(alpha, {})}
+        if feature:
+            for a in list(filtered.keys()):
+                filtered[a] = {feature: filtered[a].get(feature, {})}
+        return jsonify({
+            'data': filtered,
+            'feature_names': feature_names,
+            'alphas': alphas
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 if __name__ == '__main__':
     app.run(debug=True)
