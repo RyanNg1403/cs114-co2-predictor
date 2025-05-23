@@ -264,7 +264,7 @@
                                     <option value="Decision Tree">Decision Tree</option>
                                     <option value="KNN">KNN</option>
                                     <option value="Linear Regression">Linear Regression</option>
-                                    <option value="Both">Both</option>
+                                    <option value="All">All</option>
                                 </select>
                             </div>
                             <div class="col-md-6" id="lassoTypeContainer">
@@ -272,7 +272,7 @@
                                 <select class="form-select" id="lassoType">
                                     <option value="CD">Coordinate Descent</option>
                                     <option value="PGD">Proximal Gradient Descent</option>
-                                    <option value="All">All Variants</option>
+                                    <option value="Both">Both</option>
                                 </select>
                             </div>
                         </div>
@@ -460,7 +460,7 @@
 
             // Show/hide Lasso type selection based on algorithm
             algorithmSelect.addEventListener('change', function() {
-                lassoTypeContainer.style.display = this.value === 'Lasso' || this.value === 'Both' ? 'block' : 'none';
+                lassoTypeContainer.style.display = this.value === 'Lasso' || this.value === 'All' ? 'block' : 'none';
             });
 
             // Handle form submission

@@ -105,8 +105,8 @@ def predict():
         feature_df = pd.DataFrame([feature_dict])
         predictions = {}
 
-        if algorithm in ['Lasso', 'Both']:
-            if lasso_type == 'All':
+        if algorithm in ['Lasso', 'All']:
+            if lasso_type == 'Both':
                 predictions['Lasso CD (Scratch)'] = float(lasso_cd.predict(feature_df)[0])
                 predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             else:
@@ -116,16 +116,15 @@ def predict():
                     predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             if use_sklearn:
                 predictions['Lasso (Sklearn)'] = float(sklearn_lasso.predict(feature_df)[0])
-
-        if algorithm in ['Decision Tree', 'Both']:
+        if algorithm in ['Decision Tree', 'All']:
             predictions['Decision Tree (Scratch)'] = float(scratch_dt.predict(feature_df)[0])
             if use_sklearn:
                 predictions['Decision Tree (Sklearn)'] = float(sklearn_dt.predict(feature_df)[0])
-        if algorithm == 'KNN':
+        if algorithm in ['KNN', 'All']:
             predictions['KNN (Scratch)'] = float(scratch_knn.predict(feature_df)[0])
             if use_sklearn:
                 predictions['KNN (Sklearn)'] = float(sklearn_knn.predict(feature_df)[0])
-        if algorithm == 'Linear Regression':
+        if algorithm in ['Linear Regression', 'All']:
             predictions['Linear Regression (Scratch)'] = float(scratch_lr.predict(feature_df)[0])
             if use_sklearn:
                 predictions['Linear Regression (Sklearn)'] = float(sklearn_lr.predict(feature_df)[0])
