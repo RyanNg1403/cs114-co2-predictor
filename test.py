@@ -44,7 +44,7 @@ y = y_cleaned.copy()
 
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X_cleaned, y, test_size=0.2, random_state=69
+    X_cleaned, y, test_size=0.2, random_state=42
 )
 
 
@@ -52,11 +52,6 @@ def run_lasso_scratch_cd(X_train, y_train, alpha, tol, max_iter):
     lasso_cd = LassoCD(alpha=alpha, tol=tol, max_iter=max_iter)
     lasso_cd.fit(X_train, y_train)
     return lasso_cd.coef_, lasso_cd.intercept_
-
-def run_lasso_scratch_gd(X_train, y_train, alpha, lr, max_iter, tol):
-    lasso_gd = LassoGD(alpha, lr, max_iter, tol)
-    lasso_gd.fit(X_train, y_train)
-    return lasso_gd.coef_, lasso_gd.intercept_
 
 def run_lasso_scratch_pgd(X_train, y_train, alpha, lr, max_iter, tol):
     lasso_gd = LassoPGD(alpha, lr, max_iter, tol)
@@ -72,7 +67,6 @@ def compare_models(X_train, y_train, X_test, y_test, alpha, tol, max_iter, lr):
         'Lasso_sklearn'    : run_lasso_sklearn,
         'Lasso_scratch_CD' : run_lasso_scratch_cd,
         'Lasso_scratch_PGD': run_lasso_scratch_pgd,
-        'Lasso_scratch_GD' : run_lasso_scratch_gd,
     }
 
     coef_data    = {}
@@ -80,7 +74,7 @@ def compare_models(X_train, y_train, X_test, y_test, alpha, tol, max_iter, lr):
 
     for name, func in methods.items():
         # fit & get coef/intercept
-        if name in ('Lasso_scratch_GD','Lasso_scratch_PGD'):
+        if name == 'Lasso_scratch_PGD':
             coef, intercept = func(X_train, y_train, alpha, lr, max_iter, tol)
         else:
             coef, intercept = func(X_train, y_train, alpha, tol, max_iter)
@@ -214,7 +208,6 @@ def get_metrics(model, X_train, y_train, X_test, y_test, is_sklearn=False):
 all_metrics = {}
 all_metrics['Lasso_scratch_CD'] = metrics_comparison.loc['Lasso_scratch_CD'].to_dict()
 all_metrics['Lasso_sklearn'] = metrics_comparison.loc['Lasso_sklearn'].to_dict()
-all_metrics['Lasso_scratch_GD'] = metrics_comparison.loc['Lasso_scratch_GD'].to_dict()
 all_metrics['Lasso_scratch_PGD'] = metrics_comparison.loc['Lasso_scratch_PGD'].to_dict()
 all_metrics['Tree_scratch'] = tree_metrics.loc['Tree_scratch'].to_dict()
 all_metrics['Tree_sklearn'] = tree_metrics.loc['Tree_sklearn'].to_dict()

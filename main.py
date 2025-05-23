@@ -97,58 +97,6 @@ class LassoCD:
         X = np.asarray(X, dtype=float)
         return X.dot(self.coef_) + self.intercept_
 
-# Lasso via Gradient Descent
-class LassoGD:
-    def __init__(self, alpha=1.0, lr=0.01, max_iter=1000, tol=1e-4):
-        self.alpha = alpha
-        self.lr = lr
-        self.max_iter = max_iter
-        self.tol = tol
-
-    def fit(self, X, y):
-        X = np.asarray(X, dtype=float)
-        y = np.asarray(y, dtype=float).ravel()
-        n_samples, n_features = X.shape
-
-        # Standardize X and center y
-        self.X_mean = X.mean(axis=0)
-        self.X_std = X.std(axis=0, ddof=1)
-        self.y_mean = y.mean()
-
-        Xs = (X - self.X_mean) / self.X_std
-        ys = y - self.y_mean
-
-        w = np.zeros(n_features)
-
-        for _ in range(self.max_iter):
-            y_pred = Xs @ w
-            error = y_pred - ys
-
-            grad = (Xs.T @ error) / n_samples  # gradient of MSE part
-
-            # Subgradient for L1: sign(w)
-            subgrad = self.alpha * np.sign(w)
-
-            # Full gradient with subgradient
-            update = grad + subgrad
-
-            w_new = w - self.lr * update
-
-            # Convergence check
-            if np.max(np.abs(w_new - w)) < self.tol:
-                break
-
-            w = w_new
-
-        self.coef_ = w / self.X_std
-        self.intercept_ = self.y_mean - np.dot(self.X_mean, self.coef_)
-
-        return self
-    
-    def predict(self, X):
-        X = np.asarray(X, dtype=float)
-        return X.dot(self.coef_) + self.intercept_
-    
 # Lasso via Proximal Gradient Descent
 
 class LassoPGD:

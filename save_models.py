@@ -2,9 +2,10 @@ import joblib
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from main import LassoCD, LassoGD, LassoPGD, ScratchDecisionTreeRegressor
-from sklearn.linear_model import Lasso
+from main import LassoCD, LassoPGD, ScratchDecisionTreeRegressor, ScratchLinearRegression, ScratchKNNRegressor
+from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsRegressor
 
 # Load and preprocess data
 data = pd.read_csv('Agrofood_co2_emission.csv')
@@ -46,11 +47,6 @@ lasso_cd = LassoCD(alpha=alpha, tol=tol, max_iter=max_iter)
 lasso_cd.fit(X_cleaned, y_cleaned)
 joblib.dump(lasso_cd, 'models/lasso_cd.joblib')
 
-# Lasso GD
-lasso_gd = LassoGD(alpha=alpha, lr=lr, max_iter=max_iter, tol=tol)
-lasso_gd.fit(X_cleaned, y_cleaned)
-joblib.dump(lasso_gd, 'models/lasso_gd.joblib')
-
 # Lasso PGD
 lasso_pgd = LassoPGD(alpha=alpha, lr=lr, max_iter=max_iter, tol=tol)
 lasso_pgd.fit(X_cleaned, y_cleaned)
@@ -74,5 +70,25 @@ joblib.dump(scratch_dt, 'models/scratch_dt.joblib')
 sklearn_dt = DecisionTreeRegressor(max_depth=max_depth, min_samples_split=min_samples_split, random_state=42)
 sklearn_dt.fit(X_cleaned, y_cleaned)
 joblib.dump(sklearn_dt, 'models/sklearn_dt.joblib')
+
+# Scratch Linear Regression
+scratch_lr = ScratchLinearRegression()
+scratch_lr.fit(X_cleaned, y_cleaned)
+joblib.dump(scratch_lr, 'models/scratch_lr.joblib')
+
+# Sklearn Linear Regression
+sklearn_lr = LinearRegression()
+sklearn_lr.fit(X_cleaned, y_cleaned)
+joblib.dump(sklearn_lr, 'models/sklearn_lr.joblib')
+
+# Scratch KNN Regressor (k=5, Euclidean)
+scratch_knn = ScratchKNNRegressor(n_neighbors=5, p=2)
+scratch_knn.fit(X_cleaned, y_cleaned)
+joblib.dump(scratch_knn, 'models/scratch_knn.joblib')
+
+# Sklearn KNN Regressor (k=5, Euclidean)
+sklearn_knn = KNeighborsRegressor(n_neighbors=5)
+sklearn_knn.fit(X_cleaned, y_cleaned)
+joblib.dump(sklearn_knn, 'models/sklearn_knn.joblib')
 
 print("All models have been trained and saved successfully!") 

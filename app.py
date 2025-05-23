@@ -58,7 +58,6 @@ feature_means = X_train.mean()
 
 # Load Lasso models
 lasso_cd = joblib.load('models/lasso_cd.joblib')
-lasso_gd_params = joblib.load('models/lasso_gd_params.joblib')
 lasso_pgd_params = joblib.load('models/lasso_pgd_params.joblib')
 sklearn_lasso = joblib.load('models/sklearn_lasso.joblib')
 
@@ -103,13 +102,10 @@ def predict():
         if algorithm in ['Lasso', 'Both']:
             if lasso_type == 'All':
                 predictions['Lasso CD (Scratch)'] = float(lasso_cd.predict(feature_df)[0])
-                predictions['Lasso GD (Scratch)'] = float((np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])[0])
                 predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             else:
                 if lasso_type == 'CD':
                     predictions['Lasso CD (Scratch)'] = float(lasso_cd.predict(feature_df)[0])
-                elif lasso_type == 'GD':
-                    predictions['Lasso GD (Scratch)'] = float((np.dot(feature_df, lasso_gd_params['coef_']) + lasso_gd_params['intercept_'])[0])
                 elif lasso_type == 'PGD':
                     predictions['Lasso PGD (Scratch)'] = float((np.dot(feature_df, lasso_pgd_params['coef_']) + lasso_pgd_params['intercept_'])[0])
             if use_sklearn:
