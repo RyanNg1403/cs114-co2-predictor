@@ -336,3 +336,46 @@ def compare_feature_importance(models, feature_names):
     df = pd.DataFrame(importances, index=feature_names)
     df.index.name = 'Features'
     return df
+
+class ScratchLinearRegression:
+    def __init__(self):
+        self.coef_ = None
+        self.intercept_ = None
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float).ravel()
+        X_ = np.c_[np.ones(X.shape[0]), X]  # Add intercept
+        # Closed-form solution: (X^T X)^{-1} X^T y
+        beta = np.linalg.pinv(X_.T @ X_) @ X_.T @ y
+        self.intercept_ = beta[0]
+        self.coef_ = beta[1:]
+        return self
+
+    def predict(self, X):
+        X = np.asarray(X, dtype=float)
+        return X @ self.coef_ + self.intercept_
+
+class ScratchKNNRegressor:
+    def __init__(self, n_neighbors=5, p=2):
+        self.n_neighbors = n_neighbors
+        self.p = p  # Minkowski distance: p=2 is Euclidean, p=1 is Manhattan
+        self.X_train = None
+        self.y_train = None
+
+    def fit(self, X, y):
+        self.X_train = np.asarray(X, dtype=float)
+        self.y_train = np.asarray(y, dtype=float).ravel()
+        return self
+
+    def predict(self, X):
+        X = np.asarray(X, dtype=float)
+        preds = []
+        for x in X:
+            # Compute distances
+            dists = np.linalg.norm(self.X_train - x, ord=self.p, axis=1)
+            # Get indices of k nearest neighbors
+            nn_idx = np.argsort(dists)[:self.n_neighbors]
+            # Average their y values
+            preds.append(np.mean(self.y_train[nn_idx]))
+        return np.array(preds)
