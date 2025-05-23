@@ -65,6 +65,12 @@ sklearn_lasso = joblib.load('models/sklearn_lasso.joblib')
 scratch_dt = joblib.load('models/scratch_dt.joblib')
 sklearn_dt = joblib.load('models/sklearn_dt.joblib')
 
+# Load KNN and Linear Regression models
+scratch_knn = joblib.load('models/scratch_knn.joblib')
+sklearn_knn = joblib.load('models/sklearn_knn.joblib')
+scratch_lr = joblib.load('models/scratch_lr.joblib')
+sklearn_lr = joblib.load('models/sklearn_lr.joblib')
+
 # Get feature names from feature_means
 feature_names = feature_means.index.tolist()
 
@@ -115,6 +121,14 @@ def predict():
             predictions['Decision Tree (Scratch)'] = float(scratch_dt.predict(feature_df)[0])
             if use_sklearn:
                 predictions['Decision Tree (Sklearn)'] = float(sklearn_dt.predict(feature_df)[0])
+        if algorithm == 'KNN':
+            predictions['KNN (Scratch)'] = float(scratch_knn.predict(feature_df)[0])
+            if use_sklearn:
+                predictions['KNN (Sklearn)'] = float(sklearn_knn.predict(feature_df)[0])
+        if algorithm == 'Linear Regression':
+            predictions['Linear Regression (Scratch)'] = float(scratch_lr.predict(feature_df)[0])
+            if use_sklearn:
+                predictions['Linear Regression (Sklearn)'] = float(sklearn_lr.predict(feature_df)[0])
 
         return jsonify(predictions)
     except Exception as e:
